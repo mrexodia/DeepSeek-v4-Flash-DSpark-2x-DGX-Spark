@@ -2,7 +2,6 @@
 """CPU/source guards for the optional DSV4 runtime-ablation path."""
 from __future__ import annotations
 
-import hashlib
 import importlib.util
 import os
 import tempfile
@@ -14,7 +13,6 @@ HOTFIX = ROOT / "patches/hotfix-dsv4-runtime-ablation.py"
 COMPOSE = ROOT / "docker-compose.dspark.yml"
 START = ROOT / "start-deepseek-v4-flash-dspark.sh"
 ENV_EXAMPLE = ROOT / ".env.dspark.example"
-DIRECTION = ROOT / "files/direction_r1.pt"
 OVERLAY_MODEL = ROOT / "recipe/overlay/vllm/models/deepseek_v4/nvidia/model.py"
 EXPECTED_DIRECTION_SHA = (
     "6e4d8a8f3aa9e21795faab2c5b14d29b019acdf2ddbfbd8238430458a5837fe0"
@@ -58,9 +56,6 @@ class RuntimeAblationPatchTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.hotfix = load_hotfix()
-
-    def test_bundled_direction_digest(self):
-        self.assertEqual(hashlib.sha256(DIRECTION.read_bytes()).hexdigest(), EXPECTED_DIRECTION_SHA)
 
     def test_pinned_anemll_shape_gets_one_hook(self):
         updated, sites = self.hotfix.patch_text(ANEMLL_FIXTURE)
@@ -153,15 +148,25 @@ class RuntimeAblationWiringTests(unittest.TestCase):
     def test_abliterated_implies_runtime_ablation_and_requires_gate(self):
         self.assertIn('if [ "${ABLITERATED:-0}" = "1" ]; then', self.start)
         self.assertIn("ABLATE=1 is gated on ABLITERATED=1", self.start)
-        self.assertIn("requires a gated Hugging Face download", self.start)
-        self.assertIn("RESPONSIBLE_USE.md", self.start)
+        self.assertIn("requires the gated 18 KiB direction", self.start)
+        self.assertIn("hf auth login", self.start)
+        self.assertNotIn("RESPONSIBLE_USE.md", self.start)
 
-    def test_prepare_downloads_gated_terms_not_full_checkpoint(self):
+    def test_prepare_uses_hf_cli_and_reuses_valid_staged_direction(self):
         prepare = (ROOT / "prepare-dspark-model-cache.sh").read_text()
+        self.assertFalse((ROOT / "files/direction_r1.pt").exists())
         self.assertIn("run_gated_ablit_artifacts", prepare)
-        self.assertIn("RESPONSIBLE_USE.md", prepare)
+        self.assertIn("hf download", prepare)
+        self.assertIn('--include "ablit/*"', prepare)
+        self.assertNotIn("--force-download", prepare)
+        self.assertIn('if [ -f "$dest" ]', prepare)
+        self.assertIn("reusing previously downloaded ablation direction", prepare)
         self.assertIn("ablit/refusal_direction_r1.pt", prepare)
-        self.assertIn("not the 157 GiB", prepare)
+        self.assertIn("accept/request access to the repository", prepare)
+        self.assertIn("https://huggingface.co/${direction_repo}", prepare)
+        self.assertIn("hf auth login", prepare)
+        self.assertNotIn("trying local fallback", prepare)
+        self.assertNotIn("RESPONSIBLE_USE.md", prepare)
 
     def test_one_shot_shell_override_wins_over_env_file(self):
         source_pos = self.start.index('source "$_dspark_env_clean"')
@@ -174,9 +179,11 @@ class RuntimeAblationWiringTests(unittest.TestCase):
 
     def test_example_documents_off_default(self):
         self.assertIn("ABLITERATED=0", self.env)
-        self.assertIn("You must agree to the gated", self.env)
+        self.assertIn("accept/request access", self.env)
+        self.assertIn("hf auth login", self.env)
         self.assertIn("DSV4_ABLATE_LAMBDA=3.5", self.env)
         self.assertIn("DSV4_ABLATE_LAYERS=10-42", self.env)
+        self.assertNotIn("DSPARK_ABLATE_SOURCE_FILE", self.env)
 
 
 if __name__ == "__main__":

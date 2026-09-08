@@ -96,8 +96,6 @@ _dspark_ambient_ablate_lambda_has=0
 _dspark_ambient_ablate_lambda=""
 _dspark_ambient_ablate_layers_has=0
 _dspark_ambient_ablate_layers=""
-_dspark_ambient_ablate_source_has=0
-_dspark_ambient_ablate_source=""
 if [ -n "${ABLATE+x}" ]; then
   _dspark_ambient_ablate_has=1
   _dspark_ambient_ablate="$ABLATE"
@@ -110,11 +108,6 @@ if [ -n "${DSV4_ABLATE_LAYERS+x}" ]; then
   _dspark_ambient_ablate_layers_has=1
   _dspark_ambient_ablate_layers="$DSV4_ABLATE_LAYERS"
 fi
-if [ -n "${DSPARK_ABLATE_SOURCE_FILE+x}" ]; then
-  _dspark_ambient_ablate_source_has=1
-  _dspark_ambient_ablate_source="$DSPARK_ABLATE_SOURCE_FILE"
-fi
-
 # DSPARK_API_KEYS ambient guard (begin)
 _dspark_ambient_has=0
 _dspark_ambient_keys=""
@@ -142,9 +135,6 @@ fi
 if [ "$_dspark_ambient_ablate_layers_has" = "1" ]; then
   DSV4_ABLATE_LAYERS="$_dspark_ambient_ablate_layers"
 fi
-if [ "$_dspark_ambient_ablate_source_has" = "1" ]; then
-  DSPARK_ABLATE_SOURCE_FILE="$_dspark_ambient_ablate_source"
-fi
 COMPOSE_ENV_FILE="$_dspark_env_clean"
 
 # GPU util comes from GPU_MEMORY_UTILIZATION_TEXT (default 0.835).
@@ -169,34 +159,32 @@ fi
 #   ABLITERATED=1 → official weights + runtime direction (not the 157 GiB
 #                   Keys checkpoint). Requires a prior gated Hub download.
 DSPARK_MODEL_OFFICIAL="${DSPARK_MODEL_OFFICIAL:-deepseek-ai/DeepSeek-V4-Flash-Vision-Exp}"
-DSPARK_MODEL_ABLITERATED="${DSPARK_MODEL_ABLITERATED:-drowzeys/keys-DeepSeekV4Flash-Vision-EXP-ablit}"
 DEFAULT_OFFICIAL_REVISION="86f746b36186f0e567729a5c06a8c918caba82a9"
 DSPARK_MODEL="$DSPARK_MODEL_OFFICIAL"
 if [ -z "${DSPARK_REVISION+x}" ]; then
   DSPARK_REVISION="$DEFAULT_OFFICIAL_REVISION"
 fi
-export ABLITERATED DSPARK_MODEL DSPARK_MODEL_OFFICIAL DSPARK_MODEL_ABLITERATED DSPARK_REVISION
+export ABLITERATED DSPARK_MODEL DSPARK_MODEL_OFFICIAL DSPARK_REVISION
 
 # Runtime refusal-direction projection. User-facing switch is ABLITERATED=1;
 # that implies ABLATE=1 after the gated 18 KiB direction is on disk.
 DSV4_ABLATE_LAMBDA="${DSV4_ABLATE_LAMBDA:-3.5}"
 DSV4_ABLATE_LAYERS="${DSV4_ABLATE_LAYERS:-10-42}"
-DSPARK_ABLATE_DIRECTION_SHA256="${DSPARK_ABLATE_DIRECTION_SHA256:-6e4d8a8f3aa9e21795faab2c5b14d29b019acdf2ddbfbd8238430458a5837fe0}"
+DSPARK_ABLATE_DIRECTION_REPO="drowzeys/keys-DeepSeekV4-Flash-GA-0731-Dspark-Abliterated-Anchored-Tensors"
+DSPARK_ABLATE_DIRECTION_SHA256="6e4d8a8f3aa9e21795faab2c5b14d29b019acdf2ddbfbd8238430458a5837fe0"
 _ablate_cache="${HF_CACHE:-${HF_HOME:-$HOME/.cache/huggingface}}"
-_ablate_gate_dir="${_ablate_cache}/dspark-ablation"
-_ablate_gate_terms="${_ablate_gate_dir}/RESPONSIBLE_USE.md"
-_ablate_gate_direction="${_ablate_gate_dir}/direction_r1.pt"
+_ablate_gate_direction="${_ablate_cache}/dspark-ablation/direction_r1.pt"
 if [ "${ABLITERATED:-0}" = "1" ]; then
   ABLATE=1
 elif [ "${ABLATE:-0}" = "1" ]; then
-  echo "ABLATE=1 is gated on ABLITERATED=1. Agree to the Keys Hub terms at" >&2
-  echo "  https://huggingface.co/${DSPARK_MODEL_ABLITERATED}" >&2
+  echo "ABLATE=1 is gated on ABLITERATED=1. Accept/request access at" >&2
+  echo "  https://huggingface.co/${DSPARK_ABLATE_DIRECTION_REPO}" >&2
   echo "then run: ./prepare-dspark-model-cache.sh --abliterated" >&2
   exit 2
 else
   ABLATE=0
 fi
-DSPARK_ABLATE_SOURCE_FILE="${DSPARK_ABLATE_SOURCE_FILE:-$_ablate_gate_direction}"
+DSPARK_ABLATE_SOURCE_FILE="$_ablate_gate_direction"
 case "$ABLATE" in
   0|1) ;;
   *) echo "ABLATE must be 0 or 1 (got: $ABLATE)" >&2; exit 2 ;;
@@ -225,14 +213,12 @@ PY
     echo "DSV4_ABLATE_LAMBDA must be a finite non-negative number (got: $DSV4_ABLATE_LAMBDA)" >&2
     exit 2
   fi
-  if [[ "$DSPARK_ABLATE_SOURCE_FILE" != /* ]]; then
-    DSPARK_ABLATE_SOURCE_FILE="$SCRIPT_DIR/$DSPARK_ABLATE_SOURCE_FILE"
-  fi
-  if [ ! -f "$_ablate_gate_terms" ] || [ ! -f "$DSPARK_ABLATE_SOURCE_FILE" ]; then
-    echo "ABLITERATED=1 requires a gated Hugging Face download (Keys terms + 18 KiB direction)." >&2
-    echo "Agree at https://huggingface.co/${DSPARK_MODEL_ABLITERATED}" >&2
-    echo "then run: ./prepare-dspark-model-cache.sh --abliterated" >&2
-    echo "Missing: $_ablate_gate_terms and/or $DSPARK_ABLATE_SOURCE_FILE" >&2
+  if [ ! -f "$DSPARK_ABLATE_SOURCE_FILE" ]; then
+    echo "ABLITERATED=1 requires the gated 18 KiB direction." >&2
+    echo "Accept/request access at https://huggingface.co/${DSPARK_ABLATE_DIRECTION_REPO}" >&2
+    echo "authenticate with 'hf auth login' or HF_TOKEN, then run:" >&2
+    echo "  ./prepare-dspark-model-cache.sh --abliterated" >&2
+    echo "Missing: $DSPARK_ABLATE_SOURCE_FILE" >&2
     exit 1
   fi
   _ablate_actual_sha="$(sha256sum "$DSPARK_ABLATE_SOURCE_FILE" | awk '{print $1}')"
@@ -1258,7 +1244,7 @@ print_resolved_profile() {
   echo "  project: $PROJECT_NAME"
   echo "  checkpoint: $DSPARK_MODEL (ABLITERATED=${ABLITERATED:-0})"
   if [ "$ABLATE" = "1" ]; then
-    echo "  runtime ablation: ON (gated Hub terms + 18 KiB direction, lambda=$DSV4_ABLATE_LAMBDA, layers=$DSV4_ABLATE_LAYERS, source=$DSPARK_ABLATE_SOURCE_FILE)"
+    echo "  runtime ablation: ON (gated Hub direction, lambda=$DSV4_ABLATE_LAMBDA, layers=$DSV4_ABLATE_LAYERS, source=$DSPARK_ABLATE_SOURCE_FILE)"
   else
     echo "  runtime ablation: off (stock model.py)"
   fi

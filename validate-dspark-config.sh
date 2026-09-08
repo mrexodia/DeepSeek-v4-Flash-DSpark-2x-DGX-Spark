@@ -25,7 +25,7 @@ GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION_TEXT:-0.835}"
 export GPU_MEMORY_UTILIZATION
 
 DSPARK_MODEL_OFFICIAL="${DSPARK_MODEL_OFFICIAL:-deepseek-ai/DeepSeek-V4-Flash-Vision-Exp}"
-DSPARK_MODEL_ABLITERATED="${DSPARK_MODEL_ABLITERATED:-drowzeys/keys-DeepSeekV4Flash-Vision-EXP-ablit}"
+DSPARK_ABLATE_DIRECTION_REPO="drowzeys/keys-DeepSeekV4-Flash-GA-0731-Dspark-Abliterated-Anchored-Tensors"
 DEFAULT_OFFICIAL_REVISION="86f746b36186f0e567729a5c06a8c918caba82a9"
 DSPARK_MODEL="$DSPARK_MODEL_OFFICIAL"
 if [ -z "${DSPARK_REVISION+x}" ]; then
@@ -38,7 +38,7 @@ DSV4_ABLATE_LAYERS="${DSV4_ABLATE_LAYERS:-10-42}"
 if [ "${ABLITERATED:-0}" = "1" ]; then
   ABLATE=1
 elif [ "${ABLATE:-0}" = "1" ]; then
-  echo "ABLATE=1 is gated on ABLITERATED=1. Agree at https://huggingface.co/${DSPARK_MODEL_ABLITERATED}" >&2
+  echo "ABLATE=1 is gated on ABLITERATED=1. Accept/request access at https://huggingface.co/${DSPARK_ABLATE_DIRECTION_REPO}" >&2
   echo "then run ./prepare-dspark-model-cache.sh --abliterated" >&2
   exit 2
 else
@@ -66,11 +66,11 @@ PY
     exit 2
   fi
   _ablate_cache="${HF_CACHE:-${HF_HOME:-$HOME/.cache/huggingface}}"
-  if [ ! -f "${_ablate_cache}/dspark-ablation/RESPONSIBLE_USE.md" ] \
-    || [ ! -f "${_ablate_cache}/dspark-ablation/direction_r1.pt" ]; then
-    echo "ABLITERATED=1 requires a gated Hub download (Keys terms + 18 KiB direction)." >&2
-    echo "Agree at https://huggingface.co/${DSPARK_MODEL_ABLITERATED}" >&2
-    echo "then run: ./prepare-dspark-model-cache.sh --abliterated" >&2
+  if [ ! -f "${_ablate_cache}/dspark-ablation/direction_r1.pt" ]; then
+    echo "ABLITERATED=1 requires the gated 18 KiB direction." >&2
+    echo "Accept/request access at https://huggingface.co/${DSPARK_ABLATE_DIRECTION_REPO}" >&2
+    echo "authenticate with 'hf auth login' or HF_TOKEN, then run:" >&2
+    echo "  ./prepare-dspark-model-cache.sh --abliterated" >&2
     exit 1
   fi
 fi

@@ -77,9 +77,10 @@ Qwen3.8-Flash-vLLM).
    ```
 
    Use `--abliterated` or `--yes` (reads `ABLITERATED` from `.env.dspark`).
-   Abliteration is gated (`HF_TOKEN`): agree on the Keys Hub repo, then
-   prepare downloads the 18 KiB direction — not the 157 GiB checkpoint.
-   Prepare forces HF online even if `HF_HUB_OFFLINE=1`, then you can serve offline.
+   Abliteration is gated: accept/request access to the [Keys direction
+   repo](https://huggingface.co/drowzeys/keys-DeepSeekV4-Flash-GA-0731-Dspark-Abliterated-Anchored-Tensors),
+   then use `hf auth login` or `HF_TOKEN`. Prepare downloads its `ablit/*`
+   artifacts — not the 157 GiB checkpoint — and can then serve offline.
    Default `DSPARK_WORKER_HF_NFS=0` also downloads onto the worker. After
    the cache is complete, keep `HF_HUB_OFFLINE=1`. See
    [Worker weights over NFS](#worker-weights-over-nfs-optional) to skip the
@@ -175,13 +176,24 @@ cluster wiring, not product switches. Full Anemll vs Stage-C matrix:
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| **`ABLITERATED`** | `0` | **`0`** = official [`deepseek-ai/DeepSeek-V4-Flash-Vision-Exp`](https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp) @ `DSPARK_REVISION`, stock decoder. **`1`** = same official weights plus runtime refusal-direction projection. Does **not** download the 157 GiB [Keys checkpoint](https://huggingface.co/drowzeys/keys-DeepSeekV4Flash-Vision-EXP-ablit). You must agree to that repo's gated terms, then `prepare --abliterated` downloads `RESPONSIBLE_USE.md` plus the 18 KiB direction (`HF_TOKEN`). Recreate both ranks after flipping. Default `λ=3.5`, layers `10-42`. The direction was captured on 0731 FP8 DSpark; transfer onto Vision-Exp is experimental. |
-| `DSPARK_REVISION` | `86f746b36186f0e567729a5c06a8c918caba82a9` | Official Vision-Exp pin. Empty = tip of `main`. |
-| `DSPARK_REVISION_ABLITERATED` | empty | Abliterated pin. Empty = tip of that repo. |
-| `DSPARK_MODEL_OFFICIAL` / `DSPARK_MODEL_ABLITERATED` | the two HF ids above | Override only if you intentionally swap the repo id. Do not point this at the 0731 ablit dump — that drops `image_url`. |
+| **`ABLITERATED`** | `0` | **`0`** = official [`deepseek-ai/DeepSeek-V4-Flash-Vision-Exp`](https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp) @ `DSPARK_REVISION`, stock decoder. **`1`** = same official weights plus runtime refusal-direction projection. Does **not** download the 157 GiB Keys checkpoint. For the first download, accept/request access to the gated [Keys direction repo](https://huggingface.co/drowzeys/keys-DeepSeekV4-Flash-GA-0731-Dspark-Abliterated-Anchored-Tensors), authenticate with `hf auth login` or `HF_TOKEN`, then run `prepare --abliterated`. Recreate both ranks after flipping. Default `λ=3.5`, layers `10-42`. The direction was captured on 0731 FP8 DSpark; transfer onto Vision-Exp is experimental. |
+| `DSPARK_REVISION` | `86f746b36186f0e567729a5c06a8c918caba82a9` | Official Vision-Exp pin, used in both stock and runtime-ablation modes. Empty = tip of `main`. |
+| `DSPARK_MODEL_OFFICIAL` | `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp` | Weight repository used in both stock and runtime-ablation modes. |
 | `SERVED_MODEL_NAME` | `deepseek-v4-flash-vision-exp` | Space-separated aliases; clients may send any alias as `model`. Startup probes, warmup, and smoke use the first alias. |
 | `HF_HUB_OFFLINE` | `1` | `1` after the hub cache is warm. Prepare forces online for the download. |
 | `DSPARK_WORKER_HF_NFS` | `0` | **`0`** (default) = bind `WORKER_HF_CACHE` as a second copy (`prepare` downloads on the worker). **`1`** = worker mounts head `HF_CACHE` over NFSv4 on ConnectX (no local checkpoint). |
+
+`prepare --abliterated` first checks for a valid staged
+`$HF_CACHE/dspark-ablation/direction_r1.pt`. If present, it is reused without a
+Hub request. Otherwise, the script runs the Hugging Face CLI with
+`--include "ablit/*"` and stages `ablit/refusal_direction_r1.pt` after checking
+its known SHA-256 digest. This is the tested 4096-dimensional `broad` direction.
+The larger `refusal_direction_reablit_20260726.pt` includes per-layer tensors
+that the current single-direction runtime hook does not consume.
+
+If gated access is denied, prepare prints the repository URL, `hf auth login` /
+`HF_TOKEN` instructions, and the command to retry. No tensor is bundled in this
+checkout.
 
 Flip `ABLITERATED` like this:
 
@@ -687,7 +699,7 @@ Full list: [`CREDITS.md`](CREDITS.md).
 patch, ragged `query_start_loc`, `nvfp4_ds_mla` wiring.
 
 **[@u1tra_instinct](https://x.com/u1tra_instinct)** — abliterated Vision-Exp
-path (`ABLITERATED=1`), gated on
+checkpoint work that inspired the runtime path, from
 [`drowzeys/keys-DeepSeekV4Flash-Vision-EXP-ablit`](https://huggingface.co/drowzeys/keys-DeepSeekV4Flash-Vision-EXP-ablit).
 
 Also: [tonyd2wild](https://github.com/tonyd2wild/), Rafael Caricio, Fraser Price,

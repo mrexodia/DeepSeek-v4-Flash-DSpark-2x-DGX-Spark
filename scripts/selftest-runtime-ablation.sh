@@ -11,10 +11,12 @@ if [ -f "$ENV_FILE" ]; then
   set +a
 fi
 IMAGE="${DSPARK_VLLM_IMAGE:-ghcr.io/anemll/dspark-vllm-gx10:0.1.1}"
-DIRECTION="${DSPARK_ABLATE_SOURCE_FILE:-$ROOT/files/direction_r1.pt}"
-if [[ "$DIRECTION" != /* ]]; then DIRECTION="$ROOT/$DIRECTION"; fi
+DIRECTION="${HF_CACHE:-$HOME/.cache/huggingface}/dspark-ablation/direction_r1.pt"
 
-[ -f "$DIRECTION" ] || { echo "missing direction: $DIRECTION" >&2; exit 1; }
+[ -f "$DIRECTION" ] || {
+  echo "missing staged direction: $DIRECTION (run prepare --abliterated after obtaining gated Hub access)" >&2
+  exit 1
+}
 [ -f "$ROOT/patches/hotfix-dsv4-runtime-ablation.py" ] || exit 1
 
 echo "Testing runtime ablation against $IMAGE"

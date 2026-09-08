@@ -1,5 +1,8 @@
 ## 2026-09-06
 
+### Changed
+- **Gated runtime-ablation artifacts now come from the Hugging Face CLI**: `prepare --abliterated` no longer uses `huggingface_hub` directly, checks a second repository's `RESPONSIBLE_USE.md`, or falls back to a redistributed tensor. If the validated staged direction is absent, it runs `hf download drowzeys/keys-DeepSeekV4-Flash-GA-0731-Dspark-Abliterated-Anchored-Tensors --revision main --include "ablit/*"`, verifies `ablit/refusal_direction_r1.pt` against the known SHA-256, and stages it for serving. Existing valid staged files are reused without a Hub request. Access failures print the gated repo URL, authentication instructions, and retry command. The larger `refusal_direction_reablit_20260726.pt` is fetched by the include pattern but intentionally unused because the current runtime hook consumes the tested single 4096-dimensional `broad` direction rather than per-layer tensors.
+
 ### Added
 - **C128A prefill metadata cache (`DSPARK_ENABLE_C128A_PREFILL_CACHE`, default 0)**: on the pinned Anemll 0.1.1 SM120 attention path, reuse the unchanged local-to-global index conversion across layers sharing the current forward's metadata. C4A, decode and the conversion kernel are unchanged; no persistent buffers are added. Includes fail-closed version/region checks, per-rank launcher synchronization and preflight, and cache-lifetime/C4/mixed-batch regressions. No end-to-end speedup is implied by the reduced conversion count.
 

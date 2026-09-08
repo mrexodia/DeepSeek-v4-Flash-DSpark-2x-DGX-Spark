@@ -18,13 +18,13 @@ This repo's concurrency results, overlay proposer, and NVFP4 launch path all
 depend directly on that contribution.
 
 **[@u1tra_instinct](https://x.com/u1tra_instinct)** — special thanks for the
-optional abliterated path (`ABLITERATED=1`), gated on the original repo
+abliterated Vision-Exp checkpoint work that inspired the optional runtime path:
 https://huggingface.co/drowzeys/keys-DeepSeekV4Flash-Vision-EXP-ablit
 
-**[drowzeys / Keys](https://huggingface.co/drowzeys/keys-DeepSeekV4-Flash-GA-0731-Dspark-Abliterated-Anchored-Tensors)** — published the
+**[drowzeys / Keys](https://huggingface.co/drowzeys/keys-DeepSeekV4-Flash-GA-0731-Dspark-Abliterated-Anchored-Tensors)** — publishes the
 4096-dimensional refusal direction (`ablit/refusal_direction_r1.pt`) used by
-the gated runtime path (`ABLITERATED=1`). Full notice:
-[`files/README.md`](files/README.md).
+the gated runtime path (`ABLITERATED=1`). The recipe downloads it from the Hub;
+the tensor is not redistributed in this repository.
 
 ## DSpark Concurrency Patch
 
